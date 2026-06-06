@@ -1,0 +1,34 @@
+[
+  {
+    "fruit": "Orange",
+    "mq135": 100.0,
+    "mq4": 60.0,
+    "mq3": 70.0,
+    "freshness": "Fresh",
+    "shelf_life_days": 6,
+    "advice": "Fruit is fresh. Safe to consume or store.",
+    "timestamp": "2026-06-05 20:50:34"
+  },
+  {
+    "fruit": "Orange",
+    "mq135": 100.0,
+    "mq4": 60.0,
+    "mq3": 70.0,
+    "freshness": "Fresh",
+    "shelf_life_days": 6,
+    "advice": "Fruit is fresh. Safe to consume or store.",
+    "timestamp": "2026-06-06 17:36:30"
+  },
+  {
+    "fruit": "Orange",
+    "mq135": 100.0,
+    "mq4": 60.0,
+    "mq3": 70.0,
+    "temperature": 15.0,
+    "humidity": 50.0,
+    "freshness": "Fresh",
+    "shelf_life_days": 6,
+    "advice": "Fruit is fresh. Safe to consume or store.",
+    "timestamp": "2026-06-06 22:25:23"
+  }
+]
