@@ -3,12 +3,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 80px 40px;
-  background-color: var(--green-light);
+  background-color: var(--cream);
   min-height: 90vh;
 }
 
 .hero-tag {
-  color: var(--green-dark);
+  color: var(--green);
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
@@ -19,7 +19,7 @@
 .hero-text h1 {
   font-size: 52px;
   font-weight: 800;
-  color: var(--green-dark);
+  color: var(--dark);
   line-height: 1.2;
   margin-bottom: 20px;
 }
@@ -33,7 +33,7 @@
 }
 
 .hero-btn {
-  background-color: var(--green-dark);
+  background-color: var(--dark);
   color: var(--white);
   border: none;
   padding: 14px 32px;
@@ -45,7 +45,7 @@
 }
 
 .hero-btn:hover {
-  background-color: var(--green-mid);
+  background-color: var(--forest);
 }
 
 .hero-stats {
@@ -57,7 +57,7 @@
 .stat h3 {
   font-size: 28px;
   font-weight: 800;
-  color: var(--green-dark);
+  color: var(--dark);
 }
 
 .stat p {
