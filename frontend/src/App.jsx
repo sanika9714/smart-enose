@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import Home from "./pages/Home"
 import Dashboard from "./pages/Dashboard"
+import Analytics from "./pages/Analytics"
+import Alerts from "./pages/Alerts"
+import LiveMonitor from "./pages/LiveMonitor"
 import About from "./pages/About"
 
 function App() {
@@ -9,6 +12,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/live-monitor" element={<LiveMonitor />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </BrowserRouter>

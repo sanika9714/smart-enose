@@ -1,0 +1,91 @@
+.live-body {
+  padding: 32px;
+}
+
+.live-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.live-title {
+  font-size: 28px;
+  color: #344e41;
+  margin-bottom: 4px;
+}
+
+.live-sub {
+  color: #588157;
+}
+
+.live-status {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.live-status.connected {
+  background: #d1e8d1;
+  color: #1a4d2e;
+}
+
+.live-status.disconnected {
+  background: #f0ece4;
+  color: #99948a;
+}
+
+.live-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.live-kpi-card {
+  background: #dad7cd;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.live-kpi-label {
+  font-size: 12px;
+  color: #588157;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.live-sensor-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.live-sensor-card {
+  background: #f0ece4;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.live-sensor-label {
+  font-size: 12px;
+  color: #588157;
+  margin-bottom: 6px;
+}
+
+.live-timestamp {
+  font-size: 13px;
+  color: #588157;
+  font-style: italic;
+}
+
+.live-empty {
+  color: #588157;
+  font-style: italic;
+  padding: 40px;
+  text-align: center;
+}

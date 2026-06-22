@@ -16,3 +16,8 @@ export const getAnalytics = async () => {
     const response = await axios.get(`${BASE_URL}/analytics`)
     return response.data
 }
+
+export const getLiveData = async () => {
+    const response = await axios.get(`${BASE_URL}/live`)
+    return response.data
+}

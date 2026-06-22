@@ -30,5 +30,17 @@
     "shelf_life_days": 6,
     "advice": "Fruit is fresh. Safe to consume or store.",
     "timestamp": "2026-06-06 22:25:23"
+  },
+  {
+    "fruit": "Lemon",
+    "mq135": 265.0,
+    "mq4": 167.0,
+    "mq3": 199.0,
+    "temperature": 111.0,
+    "humidity": 152.0,
+    "freshness": "Spoiled",
+    "shelf_life_days": 1,
+    "advice": "Fruit is spoiled. Do not consume.",
+    "timestamp": "2026-06-22 21:55:28"
   }
 ]

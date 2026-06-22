@@ -13,6 +13,7 @@ model = joblib.load("model.pkl")
 shelf_model = joblib.load("shelf_model.pkl")
 
 HISTORY_FILE = "history.json"
+latest_live_reading = None
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -77,6 +78,46 @@ def predict():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/live", methods=["POST"])
+def receive_live_data():
+    global latest_live_reading
+    try:
+        data = request.get_json()
+
+        mq135 = float(data["mq135"])
+        mq4   = float(data["mq4"])
+        mq3   = float(data["mq3"])
+        temperature = float(data["temperature"])
+        humidity    = float(data["humidity"])
+        fruit = data.get("fruit", "Orange")
+
+        sensor_input = np.array([[mq135, mq4, mq3, temperature, humidity]])
+        status = model.predict(sensor_input)[0]
+        shelf_days = max(0, int(round(shelf_model.predict(sensor_input)[0])))
+
+        latest_live_reading = {
+            "fruit": fruit,
+            "mq135": mq135,
+            "mq4": mq4,
+            "mq3": mq3,
+            "temperature": temperature,
+            "humidity": humidity,
+            "freshness": status,
+            "shelf_life_days": shelf_days,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        return jsonify({"message": "Live data received"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/live", methods=["GET"])
+def get_live_data():
+    if latest_live_reading is None:
+        return jsonify({"connected": False}), 200
+    return jsonify({"connected": True, "data": latest_live_reading}), 200
 
 @app.route("/history", methods=["GET"])
 def history():
