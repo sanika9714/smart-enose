@@ -73,16 +73,15 @@ function Dashboard() {
         <div className="db-logo">🍊 E-Nose</div>
         <div className="db-menu-section">
           <p className="db-menu-label">OVERVIEW</p>
-          {["Dashboard", "insight", "Live Monitor"].map(item => (
+          {["Dashboard", "Insights", "Live Monitor"].map(item => (
             <div key={item}
               className={activeMenu === item ? "db-menu-item active" : "db-menu-item"}
               onClick={() => {
-              setActiveMenu(item)
-              
-              
-              if (item === "Live Monitor") navigate("/live-monitor")
-            }}>
-              {item === "Dashboard" ? "🏠" : item === "Insight" ? "🔬" : "📡"} {item}
+                setActiveMenu(item)
+                if (item === "Insights") navigate("/insights")
+                if (item === "Live Monitor") navigate("/live-monitor")
+              }}>
+              {item === "Dashboard" ? "🏠" : item === "Insights" ? "🔬" : "📡"} {item}
             </div>
           ))}
         </div>
@@ -91,11 +90,11 @@ function Dashboard() {
           {["Alerts", "Analytics", "Devices"].map(item => (
             <div key={item}
               className={activeMenu === item ? "db-menu-item active" : "db-menu-item"}
-              onClick={() => {setActiveMenu(item)
+              onClick={() => {
+                setActiveMenu(item)
                 if (item === "Analytics") navigate("/analytics")
                 if (item === "Alerts") navigate("/alerts")
-                }
-              }>
+              }}>
               {item === "Alerts" ? "🔔" : item === "Analytics" ? "📊" : "⚙️"} {item}
             </div>
           ))}
