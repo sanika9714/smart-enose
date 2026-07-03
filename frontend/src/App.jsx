@@ -5,6 +5,7 @@ import Analytics from "./pages/Analytics"
 import Alerts from "./pages/Alerts"
 import LiveMonitor from "./pages/LiveMonitor"
 import Insights from "./pages/Insights"
+import Devices from "./pages/Devices"
 import About from "./pages/About"
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/live-monitor" element={<LiveMonitor />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/devices" element={<Devices />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </BrowserRouter>

@@ -94,6 +94,7 @@ function Dashboard() {
                 setActiveMenu(item)
                 if (item === "Analytics") navigate("/analytics")
                 if (item === "Alerts") navigate("/alerts")
+                if (item === "Devices") navigate("/devices")
               }}>
               {item === "Alerts" ? "🔔" : item === "Analytics" ? "📊" : "⚙️"} {item}
             </div>
