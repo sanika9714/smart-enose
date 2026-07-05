@@ -1,7 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { predictFreshness } from "../services/api"
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore"
+import { db } from "../firebase"
 import "./Dashboard.css"
 
 const weekData = [
@@ -21,6 +23,43 @@ function Dashboard() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [activeMenu, setActiveMenu] = useState("Dashboard")
+  const [hardwareMode, setHardwareMode] = useState(false)
+  const [hwConnected, setHwConnected] = useState(false)
+
+  // Poll live data when hardware mode is ON
+  useEffect(() => {
+    if (!hardwareMode) return;
+
+    const q = query(collection(db, "live_readings"), orderBy("timestamp", "desc"), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const readings = [];
+      snapshot.forEach((doc) => readings.push(doc.data()));
+      
+      if (readings.length > 0) {
+        const latest = readings[0];
+        setHwConnected(true);
+        setSensors({
+          mq135: String(latest.mq135),
+          mq4: String(latest.mq4),
+          mq3: String(latest.mq3),
+          temperature: String(typeof latest.temperature === 'number' ? latest.temperature.toFixed(1) : latest.temperature),
+          humidity: String(typeof latest.humidity === 'number' ? latest.humidity.toFixed(1) : latest.humidity),
+        });
+        setFruit(latest.fruit || "Orange");
+        setResult(latest);
+      }
+    }, (error) => {
+      console.warn("Firebase listener error:", error);
+      setHwConnected(false);
+    });
+
+    return () => unsubscribe();
+  }, [hardwareMode])
+
+  // Check initial device status
+  useEffect(() => {
+    // Initial check will be handled when switching to hardware mode
+  }, [])
 
   const handlePredict = async () => {
     setLoading(true)
@@ -113,12 +152,26 @@ function Dashboard() {
             <p>3 sensors active · Citrus detection</p>
           </div>
           <div className="db-header-right">
-            <div className="db-fruit-selector">
-              <button className={fruit === "Orange" ? "fruit-btn active" : "fruit-btn"} onClick={() => setFruit("Orange")}>🍊 Orange</button>
-              <button className={fruit === "Lemon" ? "fruit-btn active" : "fruit-btn"} onClick={() => setFruit("Lemon")}>🍋 Lemon</button>
+            {/* ESP32 Connection Badge */}
+            <div className={`db-hw-badge ${hwConnected ? "online" : "offline"}`}>
+              <span className={`hw-dot ${hwConnected ? "online" : "offline"}`}></span>
+              ESP32 {hwConnected ? "Online" : "Offline"}
             </div>
-            <button className="db-analyze-btn" onClick={handlePredict} disabled={loading}>
-              {loading ? "Analyzing..." : "+ Analyze Sample"}
+
+            {/* Hardware Mode Toggle */}
+            <div className="db-hw-toggle" onClick={() => setHardwareMode(!hardwareMode)}>
+              <div className={`toggle-track ${hardwareMode ? "active" : ""}`}>
+                <div className="toggle-thumb"></div>
+              </div>
+              <span className="toggle-label">{hardwareMode ? "Hardware" : "Manual"}</span>
+            </div>
+
+            <div className="db-fruit-selector">
+              <button className={fruit === "Orange" ? "fruit-btn active" : "fruit-btn"} onClick={() => setFruit("Orange")} disabled={hardwareMode}>🍊 Orange</button>
+              <button className={fruit === "Lemon" ? "fruit-btn active" : "fruit-btn"} onClick={() => setFruit("Lemon")} disabled={hardwareMode}>🍋 Lemon</button>
+            </div>
+            <button className="db-analyze-btn" onClick={handlePredict} disabled={loading || hardwareMode}>
+              {hardwareMode ? "📡 Auto Mode" : loading ? "Analyzing..." : "+ Analyze Sample"}
             </button>
           </div>
         </div>
@@ -139,12 +192,12 @@ function Dashboard() {
             <p className="db-kpi-label">EST. SHELF LIFE</p>
             <h2 className="db-kpi-value">{result ? `${result.shelf_life_days}` : "—"}</h2>
             <p className="db-kpi-unit">days remaining</p>
-            <p className="db-kpi-sub">{result ? `${result.fruit} · analyzed just now` : "Run analysis to see"}</p>
+            <p className="db-kpi-sub">{result ? `${result.fruit} · ${hardwareMode ? "live from ESP32" : "analyzed just now"}` : "Run analysis to see"}</p>
           </div>
 
           <div className="db-kpi-card">
             <p className="db-kpi-label">ADVICE</p>
-            <p className="db-kpi-advice">{result ? result.advice : "Enter sensor values and click Analyze Sample"}</p>
+            <p className="db-kpi-advice">{result ? result.advice : hardwareMode ? "Waiting for hardware data..." : "Enter sensor values and click Analyze Sample"}</p>
           </div>
         </div>
 
@@ -168,10 +221,11 @@ function Dashboard() {
                   value={sensors[s.key]}
                   onChange={(e) => setSensors({ ...sensors, [s.key]: e.target.value })}
                   className="db-sensor-input"
+                  disabled={hardwareMode}
                 />
                 <span className="db-sensor-unit">{s.unit}</span>
               </div>
-              <p className="db-sensor-desc">{s.desc}</p>
+              <p className="db-sensor-desc">{s.desc}{hardwareMode ? " · live feed" : ""}</p>
               <div className="db-bar-track">
                 <div className="db-bar-fill" style={{
                   width: `${getBarWidth(sensors[s.key], s.max)}%`,
@@ -195,7 +249,7 @@ function Dashboard() {
                 <div>
                   <input type="number" placeholder="0" value={sensors.temperature}
                     onChange={(e) => setSensors({ ...sensors, temperature: e.target.value })}
-                    className="db-env-input" />
+                    className="db-env-input" disabled={hardwareMode} />
                   <p>Temperature °C</p>
                 </div>
               </div>
@@ -204,7 +258,7 @@ function Dashboard() {
                 <div>
                   <input type="number" placeholder="0" value={sensors.humidity}
                     onChange={(e) => setSensors({ ...sensors, humidity: e.target.value })}
-                    className="db-env-input" />
+                    className="db-env-input" disabled={hardwareMode} />
                   <p>Humidity %</p>
                 </div>
               </div>
