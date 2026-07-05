@@ -21,3 +21,13 @@ export const getLiveData = async () => {
     const response = await axios.get(`${BASE_URL}/live`)
     return response.data
 }
+
+export const getLiveHistory = async (limit = 20) => {
+    const response = await axios.get(`${BASE_URL}/live/history?limit=${limit}`)
+    return response.data
+}
+
+export const getDeviceStatus = async () => {
+    const response = await axios.get(`${BASE_URL}/device/status`)
+    return response.data
+}
