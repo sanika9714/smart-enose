@@ -67,5 +67,41 @@
     "shelf_life_days": 0,
     "advice": "Fruit is spoiled. Do not consume.",
     "timestamp": "2026-07-05 14:00:21"
+  },
+  {
+    "fruit": "Orange",
+    "mq135": 120.0,
+    "mq4": 80.0,
+    "mq3": 100.0,
+    "temperature": 25.0,
+    "humidity": 60.0,
+    "freshness": "Fresh",
+    "shelf_life_days": 5,
+    "advice": "Fruit is fresh. Safe to consume or store.",
+    "timestamp": "2026-07-07 20:07:59"
+  },
+  {
+    "fruit": "Orange",
+    "mq135": 184.0,
+    "mq4": 252.0,
+    "mq3": 153.0,
+    "temperature": 108.0,
+    "humidity": 67.0,
+    "freshness": "Medium",
+    "shelf_life_days": 2,
+    "advice": "Fruit is aging. Use soon or refrigerate.",
+    "timestamp": "2026-07-07 20:18:50"
+  },
+  {
+    "fruit": "Orange",
+    "mq135": 184.0,
+    "mq4": 252.0,
+    "mq3": 153.0,
+    "temperature": 108.0,
+    "humidity": 67.0,
+    "freshness": "Medium",
+    "shelf_life_days": 2,
+    "advice": "Fruit is aging. Use soon or refrigerate.",
+    "timestamp": "2026-07-07 20:23:00"
   }
 ]

@@ -32,9 +32,9 @@ try:
     firebase_admin.initialize_app(cred)
     db = firestore.client()
     firebase_enabled = True
-    print("✅ Firebase initialized successfully")
+    print("[OK] Firebase initialized successfully")
 except Exception as e:
-    print(f"⚠️ Firebase initialization failed (check serviceAccountKey.json): {e}")
+    print(f"[Warning] Firebase initialization failed (check serviceAccountKey.json): {e}")
     firebase_enabled = False
 
 def load_history():

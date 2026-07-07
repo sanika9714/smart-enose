@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const BASE_URL = "http://127.0.0.1:5000"
+const BASE_URL = `http://${window.location.hostname}:5000`
 
 export const predictFreshness = async (sensorData) => {
     const response = await axios.post(`${BASE_URL}/predict`, sensorData)
