@@ -8,29 +8,54 @@ import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-if os.environ.get("FIREBASE_CREDENTIALS"):
-    cred_dict = json.loads(os.environ.get("FIREBASE_CREDENTIALS"))
-    cred = credentials.Certificate(cred_dict)
-else:
-    cred = credentials.Certificate("serviceAccountKey.json")
-
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-
 app = Flask(__name__)
 CORS(app)
 
 model = joblib.load("model.pkl")
 shelf_model = joblib.load("shelf_model.pkl")
 
+HISTORY_FILE = "history.json"
 latest_live_reading = None
+live_history = []  # Stores last N live readings for trend charts
+device_status = {
+    "last_seen": None,
+    "total_readings": 0,
+    "online": False
+}
+
+LIVE_HISTORY_MAX = 50  # Keep last 50 readings for trend charts
+DEVICE_TIMEOUT_SECONDS = 15  # Consider device offline after 15s
+
+# Initialize Firebase Admin
+try:
+    cred = credentials.Certificate('serviceAccountKey.json')
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    firebase_enabled = True
+    print("✅ Firebase initialized successfully")
+except Exception as e:
+    print(f"⚠️ Firebase initialization failed (check serviceAccountKey.json): {e}")
+    firebase_enabled = False
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_to_history(record):
+    history = load_history()
+    history.append(record)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
 
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
         "message": "Smart E-Nose API is running!",
         "project": "Citrus Freshness Detection - Nagpur",
-        "version": "1.0"
+        "version": "2.0",
+        "hardware": "ESP32 + MQ-135 + MQ-4 + MQ-3 + DHT11"
     })
 
 @app.route("/predict", methods=["POST"])
@@ -45,7 +70,7 @@ def predict():
         humidity    = float(data["humidity"])
         fruit = data.get("fruit", "Orange")
 
-        sensor_input = np.array([[mq135, mq4, mq3, temperature, humidity]])
+        sensor_input = np.array([[mq135, mq4, mq3,temperature, humidity]])
 
         status = model.predict(sensor_input)[0]
         shelf_days = int(round(shelf_model.predict(sensor_input)[0]))
@@ -71,12 +96,7 @@ def predict():
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        try:
-            doc_ref = db.collection('citrus_history').document()
-            doc_ref.set(result)
-        except Exception as cloud_err:
-            print(f"Cloud locker error: {cloud_err}")
-
+        save_to_history(result)
         return jsonify(result), 200
 
     except Exception as e:
@@ -84,7 +104,12 @@ def predict():
 
 @app.route("/live", methods=["POST"])
 def receive_live_data():
-    global latest_live_reading
+    """
+    Receives live sensor data from ESP32 hardware.
+    Runs ML prediction and returns the result so ESP32 can
+    display it on the LCD and trigger the buzzer.
+    """
+    global latest_live_reading, live_history, device_status
     try:
         data = request.get_json()
 
@@ -99,6 +124,18 @@ def receive_live_data():
         status = model.predict(sensor_input)[0]
         shelf_days = max(0, int(round(shelf_model.predict(sensor_input)[0])))
 
+        if status == "Fresh":
+            advice = "Fruit is fresh. Safe to consume or store."
+            edible = "edible"
+        elif status == "Medium":
+            advice = "Fruit is aging. Use soon or refrigerate."
+            edible = "caution"
+        else:
+            advice = "Fruit is spoiled. Do not consume."
+            edible = "not_edible"
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         latest_live_reading = {
             "fruit": fruit,
             "mq135": mq135,
@@ -108,10 +145,40 @@ def receive_live_data():
             "humidity": humidity,
             "freshness": status,
             "shelf_life_days": shelf_days,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "advice": advice,
+            "edible": edible,
+            "timestamp": timestamp
         }
 
-        return jsonify({"message": "Live data received"}), 200
+        # Add to live history for trend charts
+        live_history.append(latest_live_reading.copy())
+        if len(live_history) > LIVE_HISTORY_MAX:
+            live_history = live_history[-LIVE_HISTORY_MAX:]
+
+        # Update device status
+        device_status["last_seen"] = timestamp
+        device_status["total_readings"] += 1
+        device_status["online"] = True
+
+        # Auto-save to persistent history
+        save_to_history(latest_live_reading.copy())
+
+        # Push to Firebase Firestore
+        if firebase_enabled:
+            try:
+                db.collection('live_readings').add(latest_live_reading)
+                db.collection('device_status').document('esp32').set(device_status)
+            except Exception as e:
+                print(f"Firebase write error: {e}")
+
+        # Return prediction to ESP32 (for LCD display and buzzer)
+        return jsonify({
+            "message": "Live data received and analyzed",
+            "freshness": status,
+            "shelf_life_days": shelf_days,
+            "advice": advice,
+            "edible": edible
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -120,45 +187,85 @@ def receive_live_data():
 def get_live_data():
     if latest_live_reading is None:
         return jsonify({"connected": False}), 200
-    return jsonify({"connected": True, "data": latest_live_reading}), 200
+
+    # Check if device is still online (last seen within timeout)
+    if device_status["last_seen"]:
+        last_seen = datetime.strptime(device_status["last_seen"], "%Y-%m-%d %H:%M:%S")
+        diff = (datetime.now() - last_seen).total_seconds()
+        device_status["online"] = diff < DEVICE_TIMEOUT_SECONDS
+
+    return jsonify({
+        "connected": device_status["online"],
+        "data": latest_live_reading
+    }), 200
+
+@app.route("/live/history", methods=["GET"])
+def get_live_history():
+    """Returns last N live readings for real-time trend charts."""
+    limit = request.args.get("limit", 20, type=int)
+    limit = min(limit, LIVE_HISTORY_MAX)
+    return jsonify({
+        "total": len(live_history),
+        "readings": live_history[-limit:]
+    }), 200
+
+@app.route("/device/status", methods=["GET"])
+def get_device_status():
+    """Returns ESP32 device health and connection info."""
+    # Re-check online status
+    if device_status["last_seen"]:
+        last_seen = datetime.strptime(device_status["last_seen"], "%Y-%m-%d %H:%M:%S")
+        diff = (datetime.now() - last_seen).total_seconds()
+        device_status["online"] = diff < DEVICE_TIMEOUT_SECONDS
+    else:
+        device_status["online"] = False
+
+    return jsonify({
+        "device": "ESP32",
+        "online": device_status["online"],
+        "last_seen": device_status["last_seen"],
+        "total_readings": device_status["total_readings"],
+        "sensors": {
+            "mq135": {"pin": 34, "type": "analog", "desc": "NH₃ / CO₂ / VOCs"},
+            "mq4":   {"pin": 35, "type": "analog", "desc": "Methane"},
+            "mq3":   {"pin": 4,  "type": "digital", "desc": "Ethanol (trigger)"},
+            "dht11": {"pin": 5,  "type": "digital", "desc": "Temperature & Humidity"},
+            "buzzer":{"pin": 2,  "type": "output",  "desc": "Alert buzzer"},
+            "lcd_sda":{"pin": 21,"type": "i2c",     "desc": "LCD Data"},
+            "lcd_scl":{"pin": 22,"type": "i2c",     "desc": "LCD Clock"}
+        }
+    }), 200
 
 @app.route("/history", methods=["GET"])
 def history():
-    try:
-        docs = db.collection('citrus_history').order_by('timestamp', direction=firestore.Query.DESCENDING).stream()
-        records = [doc.to_dict() for doc in docs]
-        return jsonify({
-            "total": len(records),
-            "records": records
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    records = load_history()
+    return jsonify({
+        "total": len(records),
+        "records": records
+    }), 200
 
 @app.route("/analytics", methods=["GET"])
 def analytics():
-    try:
-        docs = db.collection('citrus_history').stream()
-        records = [doc.to_dict() for doc in docs]
+    records = load_history()
+    if not records:
+        return jsonify({"message": "No data yet"}), 200
 
-        if not records:
-            return jsonify({"message": "No data yet"}), 200
+    total   = len(records)
+    fresh   = sum(1 for r in records if r["freshness"] == "Fresh")
+    medium  = sum(1 for r in records if r["freshness"] == "Medium")
+    spoiled = sum(1 for r in records if r["freshness"] == "Spoiled")
 
-        total   = len(records)
-        fresh   = sum(1 for r in records if r["freshness"] == "Fresh")
-        medium  = sum(1 for r in records if r["freshness"] == "Medium")
-        spoiled = sum(1 for r in records if r["freshness"] == "Spoiled")
-
-        return jsonify({
-            "total_readings": total,
-            "fresh_count": fresh,
-            "medium_count": medium,
-            "spoiled_count": spoiled,
-            "fresh_percent": round((fresh / total) * 100, 1),
-            "spoiled_percent": round((spoiled / total) * 100, 1)
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "total_readings": total,
+        "fresh_count": fresh,
+        "medium_count": medium,
+        "spoiled_count": spoiled,
+        "fresh_percent": round((fresh / total) * 100, 1),
+        "spoiled_percent": round((spoiled / total) * 100, 1)
+    }), 200
 
 if __name__ == "__main__":
-    print("Starting Smart E-Nose API...")
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    print("Starting Smart E-Nose API v2.0...")
+    print("Hardware: ESP32 + MQ-135 + MQ-4 + MQ-3 + DHT11")
+    print("Endpoints: /predict, /live, /live/history, /device/status, /history, /analytics")
+    app.run(debug=True, host="0.0.0.0", port=5000)
