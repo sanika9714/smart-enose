@@ -16,26 +16,41 @@ shelf_model = joblib.load("shelf_model.pkl")
 
 HISTORY_FILE = "history.json"
 latest_live_reading = None
-live_history = []  # Stores last N live readings for trend charts
+live_history = []  
 device_status = {
     "last_seen": None,
     "total_readings": 0,
     "online": False
 }
 
-LIVE_HISTORY_MAX = 50  # Keep last 50 readings for trend charts
-DEVICE_TIMEOUT_SECONDS = 15  # Consider device offline after 15s
+LIVE_HISTORY_MAX = 50  
+DEVICE_TIMEOUT_SECONDS = 15  
 
-# Initialize Firebase Admin
+# Initialize Firebase Admin supporting both Local and Cloud (Render)
 try:
-    cred = credentials.Certificate('serviceAccountKey.json')
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    firebase_enabled = True
-    print("[OK] Firebase initialized successfully")
+    cred_path = "serviceAccountKey.json"
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        firebase_enabled = True
+        print("[OK] Firebase initialized successfully using local serviceAccountKey.json")
+    else:
+        firebase_env = os.environ.get("FIREBASE_CREDENTIALS")
+        if firebase_env:
+            cred_dict = json.loads(firebase_env)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            firebase_enabled = True
+            print("[OK] Firebase initialized successfully using FIREBASE_CREDENTIALS env var")
+        else:
+            firebase_enabled = False
+            print("[Warning] Firebase initialization skipped: Neither local file nor env var found.")
 except Exception as e:
-    print(f"[Warning] Firebase initialization failed (check serviceAccountKey.json): {e}")
+    print(f"[Warning] Firebase initialization failed: {e}")
     firebase_enabled = False
+
+if firebase_enabled:
+    db = firestore.client()
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -70,7 +85,7 @@ def predict():
         humidity    = float(data["humidity"])
         fruit = data.get("fruit", "Orange")
 
-        sensor_input = np.array([[mq135, mq4, mq3,temperature, humidity]])
+        sensor_input = np.array([[mq135, mq4, mq3, temperature, humidity]])
 
         status = model.predict(sensor_input)[0]
         shelf_days = int(round(shelf_model.predict(sensor_input)[0]))
@@ -97,6 +112,13 @@ def predict():
         }
 
         save_to_history(result)
+
+        if firebase_enabled:
+            try:
+                db.collection("citrus_history").add(result)
+            except Exception as e:
+                print(f"Firebase persistent record save error: {e}")
+
         return jsonify(result), 200
 
     except Exception as e:
@@ -104,11 +126,6 @@ def predict():
 
 @app.route("/live", methods=["POST"])
 def receive_live_data():
-    """
-    Receives live sensor data from ESP32 hardware.
-    Runs ML prediction and returns the result so ESP32 can
-    display it on the LCD and trigger the buzzer.
-    """
     global latest_live_reading, live_history, device_status
     try:
         data = request.get_json()
@@ -150,28 +167,24 @@ def receive_live_data():
             "timestamp": timestamp
         }
 
-        # Add to live history for trend charts
         live_history.append(latest_live_reading.copy())
         if len(live_history) > LIVE_HISTORY_MAX:
             live_history = live_history[-LIVE_HISTORY_MAX:]
 
-        # Update device status
         device_status["last_seen"] = timestamp
         device_status["total_readings"] += 1
         device_status["online"] = True
 
-        # Auto-save to persistent history
         save_to_history(latest_live_reading.copy())
 
-        # Push to Firebase Firestore
         if firebase_enabled:
             try:
-                db.collection('live_readings').add(latest_live_reading)
-                db.collection('device_status').document('esp32').set(device_status)
+                db.collection("live_readings").add(latest_live_reading)
+                db.collection("citrus_history").add(latest_live_reading.copy())
+                db.collection("device_status").document("esp32").set(device_status)
             except Exception as e:
                 print(f"Firebase write error: {e}")
 
-        # Return prediction to ESP32 (for LCD display and buzzer)
         return jsonify({
             "message": "Live data received and analyzed",
             "freshness": status,
@@ -188,7 +201,6 @@ def get_live_data():
     if latest_live_reading is None:
         return jsonify({"connected": False}), 200
 
-    # Check if device is still online (last seen within timeout)
     if device_status["last_seen"]:
         last_seen = datetime.strptime(device_status["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (datetime.now() - last_seen).total_seconds()
@@ -201,7 +213,6 @@ def get_live_data():
 
 @app.route("/live/history", methods=["GET"])
 def get_live_history():
-    """Returns last N live readings for real-time trend charts."""
     limit = request.args.get("limit", 20, type=int)
     limit = min(limit, LIVE_HISTORY_MAX)
     return jsonify({
@@ -211,8 +222,6 @@ def get_live_history():
 
 @app.route("/device/status", methods=["GET"])
 def get_device_status():
-    """Returns ESP32 device health and connection info."""
-    # Re-check online status
     if device_status["last_seen"]:
         last_seen = datetime.strptime(device_status["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (datetime.now() - last_seen).total_seconds()
