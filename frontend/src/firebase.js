@@ -1,17 +1,24 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
+import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
-// Replace these values with your actual Firebase project config
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBc9m8-RstJj8fuLLyYJkVPOlQbSlmm4Dw",
+  authDomain: "smart-enose97.firebaseapp.com",
+  databaseURL: "https://smart-enose97-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smart-enose97",
+  storageBucket: "smart-enose97.firebasestorage.app",
+  messagingSenderId: "991446243691",
+  appId: "1:991446243691:web:fe16048a19f47013cdd42e",
+  measurementId: "G-FMBPZP08QX"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const rtdb = getDatabase(app);
+export const analytics = getAnalytics(app);
+export default app;
